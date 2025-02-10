@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>aa16z - Stock & Crypto News, Sentiment, and Predictions</title>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        #ticker-form {
+            margin-bottom: 20px;
+        }
+        .ticker-item {
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>aa16z - Personalized Ticker Insights</h1>
+    <form id="ticker-form">
+        <input type="text" id="ticker-input" placeholder="Enter Stock Symbol or Crypto Address" required />
+        <button type="submit">Add Ticker</button>
+    </form>
+    <div id="ticker-list"></div>
+
+    <script>
+        const VENICE_API_KEY = "qNHgGGkwlhGw_uVLC7Px9hdRpIEaWt1P8DQ2_zIGm8";
+        const VENICE_API_URL = "https://api.venice.ai/api/v1/chat/completions";
+
+        const tickerList = document.getElementById('ticker-list');
+        const tickerForm = document.getElementById('ticker-form');
+        const tickerInput = document.getElementById('ticker-input');
+
+        let tickers = [];
+
+        tickerForm.addEventListener('submit', async (event) => {
+            event.preventDefault();
+            const ticker = tickerInput.value.trim().toUpperCase();
+            if (ticker && !tickers.includes(ticker)) {
+                tickers.push(ticker);
+                displayTicker(ticker);
+                await fetchTickerInsights(ticker);
+            }
+            tickerInput.value = '';
+        });
+
+        function displayTicker(ticker) {
+            const tickerItem = document.createElement('div');
+            tickerItem.className = 'ticker-item';
+            tickerItem.id = `ticker-${ticker}`;
+            tickerItem.innerHTML = `<strong>${ticker}</strong>: <span id="price-${ticker}">Loading...</span> | 
+                                    Sentiment: <span id="sentiment-${ticker}">Fetching...</span> | 
+                                    Prediction: <span id="prediction-${ticker}">Loading...</span> | 
+                                    News: <span id="summary-${ticker}">Fetching...</span>`;
+            tickerList.appendChild(tickerItem);
+        }
+
+        async function fetchTickerInsights(ticker) {
+            try {
+                const response = await axios.post(VENICE_API_URL, {
+                    model: 'gpt-4',
+                    messages: [
+                        {
+                            role: 'system',
+                            content: 'You are an AI that provides live price updates, sentiment analysis, predictions, and personalized news summaries for financial assets.'
+                        },
+                        {
+                            role: 'user',
+                            content: `Give me the latest price, sentiment analysis, price prediction, and news summary for the ticker: ${ticker}`
+                        }
+                    ]
+                }, {
+                    headers: {
+                        'Authorization': `Bearer ${VENICE_API_KEY}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                const data = response.data;
+                const insights = data.choices[0].message.content;
+
+                // Extracting data from the response
+                const { price, sentiment, prediction, summary } = parseInsights(insights);
+
+                updateTickerInfo(ticker, price, sentiment, prediction, summary);
+            } catch (error) {
+                console.error('Error fetching ticker insights:', error);
+                updateTickerInfo(ticker, 'N/A', 'N/A', 'N/A', 'Error fetching data.');
+            }
+        }
+
+        function parseInsights(insights) {
+            // Simulating parsing logic. Adjust according to the actual API response structure.
+            const lines = insights.split('\n');
+            return {
+                price: lines.find(line => line.startsWith('Price:'))?.split(': ')[1] || 'N/A',
+                sentiment: lines.find(line => line.startsWith('Sentiment:'))?.split(': ')[1] || 'N/A',
+                prediction: lines.find(line => line.startsWith('Prediction:'))?.split(': ')[1] || 'N/A',
+                summary: lines.find(line => line.startsWith('Summary:'))?.split(': ')[1] || 'N/A'
+            };
+        }
+
+        function updateTickerInfo(ticker, price, sentiment, prediction, summary) {
+            const priceElement = document.getElementById(`price-${ticker}`);
+            const sentimentElement = document.getElementById(`sentiment-${ticker}`);
+            const predictionElement = document.getElementById(`prediction-${ticker}`);
+            const summaryElement = document.getElementById(`summary-${ticker}`);
+
+            priceElement.textContent = price;
+            sentimentElement.textContent = sentiment;
+            predictionElement.textContent = prediction;
+            summaryElement.textContent = summary;
+        }
+    </script>
+</body>
+</html>
